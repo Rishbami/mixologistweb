@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import {
   collection,
@@ -153,6 +154,30 @@ function isFirebaseHostedImage(url: string | null | undefined) {
     url.includes("firebasestorage.googleapis.com") ||
     url.includes("storage.googleapis.com") ||
     url.includes("firebasestorage.app")
+  );
+}
+
+function CocktailThumbnail({ name, thumbnail }: Pick<Cocktail, "name" | "thumbnail">) {
+  if (!thumbnail) {
+    return (
+      <div className="flex h-28 w-full items-center justify-center rounded-[1.25rem] bg-stone-200 text-xs font-semibold uppercase tracking-[0.25em] text-stone-500 sm:h-36 sm:w-36">
+        No Image
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-28 w-full overflow-hidden rounded-[1.25rem] bg-stone-200 sm:h-36 sm:w-36">
+      <Image
+        alt={name}
+        className="h-full w-full object-cover"
+        height={144}
+        loading="lazy"
+        src={thumbnail}
+        unoptimized
+        width={144}
+      />
+    </div>
   );
 }
 
@@ -598,40 +623,49 @@ export function MixologistApp() {
                       key={cocktail.id}
                       className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-5"
                     >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h3 className="text-xl font-semibold text-stone-950">
-                            {cocktail.name}
-                          </h3>
-                          <p className="mt-2 text-sm text-stone-600">
-                            {[cocktail.category, cocktail.alcoholic, cocktail.glass]
-                              .filter(Boolean)
-                              .join(" • ")}
-                          </p>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        <CocktailThumbnail
+                          name={cocktail.name}
+                          thumbnail={cocktail.thumbnail}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <h3 className="text-xl font-semibold text-stone-950">
+                                {cocktail.name}
+                              </h3>
+                              <p className="mt-2 text-sm text-stone-600">
+                                {[cocktail.category, cocktail.alcoholic, cocktail.glass]
+                                  .filter(Boolean)
+                                  .join(" • ")}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
+                              Ready
+                            </span>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {cocktail.ingredients.map((ingredient) => (
+                              <span
+                                key={`${cocktail.id}-${ingredient.key}`}
+                                className="rounded-full bg-white px-3 py-1 text-sm text-stone-700"
+                              >
+                                {ingredient.measure
+                                  ? `${ingredient.name} · ${ingredient.measure}`
+                                  : ingredient.name}
+                              </span>
+                            ))}
+                          </div>
+
+                          {cocktail.instructions ? (
+                            <p className="mt-4 text-sm leading-7 text-stone-700">
+                              {cocktail.instructions}
+                            </p>
+                          ) : null}
                         </div>
-                        <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
-                          Ready
-                        </span>
                       </div>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {cocktail.ingredients.map((ingredient) => (
-                          <span
-                            key={`${cocktail.id}-${ingredient.key}`}
-                            className="rounded-full bg-white px-3 py-1 text-sm text-stone-700"
-                          >
-                            {ingredient.measure
-                              ? `${ingredient.name} · ${ingredient.measure}`
-                              : ingredient.name}
-                          </span>
-                        ))}
-                      </div>
-
-                      {cocktail.instructions ? (
-                        <p className="mt-4 text-sm leading-7 text-stone-700">
-                          {cocktail.instructions}
-                        </p>
-                      ) : null}
                     </article>
                   ))
                 ) : (
@@ -662,41 +696,50 @@ export function MixologistApp() {
                       key={cocktail.id}
                       className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-5"
                     >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h3 className="text-xl font-semibold text-stone-950">
-                            {cocktail.name}
-                          </h3>
-                          <p className="mt-2 text-sm text-stone-600">
-                            Missing: {missingIngredients.map((item) => item.name).join(", ")}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
-                          One away
-                        </span>
-                      </div>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        <CocktailThumbnail
+                          name={cocktail.name}
+                          thumbnail={cocktail.thumbnail}
+                        />
 
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {cocktail.ingredients.map((ingredient) => {
-                          const isMissing = missingIngredients.some(
-                            (item) => item.key === ingredient.key,
-                          );
-
-                          return (
-                            <span
-                              key={`${cocktail.id}-${ingredient.key}`}
-                              className={`rounded-full px-3 py-1 text-sm ${
-                                isMissing
-                                  ? "bg-amber-200 text-amber-950"
-                                  : "bg-white text-stone-700"
-                              }`}
-                            >
-                              {ingredient.measure
-                                ? `${ingredient.name} · ${ingredient.measure}`
-                                : ingredient.name}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <h3 className="text-xl font-semibold text-stone-950">
+                                {cocktail.name}
+                              </h3>
+                              <p className="mt-2 text-sm text-stone-600">
+                                Missing: {missingIngredients.map((item) => item.name).join(", ")}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
+                              One away
                             </span>
-                          );
-                        })}
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {cocktail.ingredients.map((ingredient) => {
+                              const isMissing = missingIngredients.some(
+                                (item) => item.key === ingredient.key,
+                              );
+
+                              return (
+                                <span
+                                  key={`${cocktail.id}-${ingredient.key}`}
+                                  className={`rounded-full px-3 py-1 text-sm ${
+                                    isMissing
+                                      ? "bg-amber-200 text-amber-950"
+                                      : "bg-white text-stone-700"
+                                  }`}
+                                >
+                                  {ingredient.measure
+                                    ? `${ingredient.name} · ${ingredient.measure}`
+                                    : ingredient.name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </article>
                   ))
