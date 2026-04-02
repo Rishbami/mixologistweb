@@ -1,12 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mixologistFixture } from "../lib/testing/mixologist-fixture";
 
 async function gotoWithFixture(page: Page) {
   await page.goto("/?fixture=mixologist");
-  await page.evaluate((fixture) => {
-    window.__MIXOLOGIST_FIXTURE__ = fixture;
-    window.localStorage.setItem("__MIXOLOGIST_FIXTURE__", JSON.stringify(fixture));
-  }, mixologistFixture);
 }
 
 test("shows fixture-backed ingredient buttons and empty-state guidance", async ({ page }) => {
