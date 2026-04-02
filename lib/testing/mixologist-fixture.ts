@@ -23,7 +23,8 @@ export const mixologistFixture = {
       ],
       instructions: "Stir with ice and strain.",
       name: "Negroni",
-      thumbnail: null,
+      thumbnail:
+        "https://firebasestorage.googleapis.com/v0/b/mixologistweb.firebasestorage.app/o/test%2Fnegroni.jpg?alt=media",
     },
     {
       alcoholic: "Alcoholic",
@@ -40,7 +41,8 @@ export const mixologistFixture = {
       ],
       instructions: "Shake with ice and strain.",
       name: "Cosmopolitan",
-      thumbnail: null,
+      thumbnail:
+        "https://firebasestorage.googleapis.com/v0/b/mixologistweb.firebasestorage.app/o/test%2Fcosmopolitan.jpg?alt=media",
     },
     {
       alcoholic: "Alcoholic",

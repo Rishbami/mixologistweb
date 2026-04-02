@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { getClientFirestore } from "@/lib/firebase/client";
+import { mixologistFixture } from "@/lib/testing/mixologist-fixture";
 
 type Ingredient = {
   key: string;
@@ -41,6 +42,8 @@ type MixologistFixture = {
   cocktails: Cocktail[];
   ingredients: Ingredient[];
 };
+
+const MIXOLOGIST_FIXTURE_STORAGE_KEY = "__MIXOLOGIST_FIXTURE__";
 
 declare global {
   interface Window {
@@ -111,7 +114,27 @@ function getFixtureData() {
     return null;
   }
 
-  return window.__MIXOLOGIST_FIXTURE__ ?? null;
+  if (window.__MIXOLOGIST_FIXTURE__) {
+    return window.__MIXOLOGIST_FIXTURE__;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+
+  if (searchParams.get("fixture") === "mixologist") {
+    return mixologistFixture;
+  }
+
+  const serializedFixture = window.localStorage.getItem(MIXOLOGIST_FIXTURE_STORAGE_KEY);
+
+  if (!serializedFixture) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(serializedFixture) as MixologistFixture;
+  } catch {
+    return null;
+  }
 }
 
 function CocktailThumbnail({ name, thumbnail }: Pick<Cocktail, "name" | "thumbnail">) {
