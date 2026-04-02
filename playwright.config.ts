@@ -10,7 +10,8 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run build && npx next start --hostname 127.0.0.1 --port 3100",
+    command:
+      "NEXT_PUBLIC_ENABLE_TEST_FIXTURES=true npm run build && NEXT_PUBLIC_ENABLE_TEST_FIXTURES=true npx next start --hostname 127.0.0.1 --port 3100",
     port: 3100,
     reuseExistingServer: false,
     stdout: "pipe",

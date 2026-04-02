@@ -38,19 +38,6 @@ type MatchResult = {
   }>;
 };
 
-type MixologistFixture = {
-  cocktails: Cocktail[];
-  ingredients: Ingredient[];
-};
-
-const MIXOLOGIST_FIXTURE_STORAGE_KEY = "__MIXOLOGIST_FIXTURE__";
-
-declare global {
-  interface Window {
-    __MIXOLOGIST_FIXTURE__?: MixologistFixture;
-  }
-}
-
 function sortByName<T extends { name: string }>(items: T[]) {
   return [...items].sort((left, right) => left.name.localeCompare(right.name));
 }
@@ -114,27 +101,16 @@ function getFixtureData() {
     return null;
   }
 
-  if (window.__MIXOLOGIST_FIXTURE__) {
-    return window.__MIXOLOGIST_FIXTURE__;
-  }
-
   const searchParams = new URLSearchParams(window.location.search);
 
-  if (searchParams.get("fixture") === "mixologist") {
+  if (
+    process.env.NEXT_PUBLIC_ENABLE_TEST_FIXTURES === "true" &&
+    searchParams.get("fixture") === "mixologist"
+  ) {
     return mixologistFixture;
   }
 
-  const serializedFixture = window.localStorage.getItem(MIXOLOGIST_FIXTURE_STORAGE_KEY);
-
-  if (!serializedFixture) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(serializedFixture) as MixologistFixture;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 function CocktailThumbnail({ name, thumbnail }: Pick<Cocktail, "name" | "thumbnail">) {
