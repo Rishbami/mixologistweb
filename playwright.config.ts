@@ -6,13 +6,13 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3100",
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npx next dev --hostname 127.0.0.1 --port 3000",
-    port: 3000,
-    reuseExistingServer: true,
+    command: "npm run build && npx next start --hostname 127.0.0.1 --port 3100",
+    port: 3100,
+    reuseExistingServer: false,
     stdout: "pipe",
     stderr: "pipe",
   },
