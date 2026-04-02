@@ -1,0 +1,63 @@
+export const mixologistFixture = {
+  ingredients: [
+    { key: "gin", name: "Gin" },
+    { key: "campari", name: "Campari" },
+    { key: "sweet vermouth", name: "Sweet Vermouth" },
+    { key: "vodka", name: "Vodka" },
+    { key: "cranberry juice", name: "Cranberry Juice" },
+    { key: "triple sec", name: "Triple Sec" },
+    { key: "lime juice", name: "Lime Juice" },
+  ],
+  cocktails: [
+    {
+      alcoholic: "Alcoholic",
+      category: "Cocktail",
+      glass: "Old-fashioned glass",
+      id: "1",
+      ingredientCount: 3,
+      ingredientKeys: ["campari", "gin", "sweet vermouth"],
+      ingredients: [
+        { key: "gin", measure: "1 oz", name: "Gin" },
+        { key: "campari", measure: "1 oz", name: "Campari" },
+        { key: "sweet vermouth", measure: "1 oz", name: "Sweet Vermouth" },
+      ],
+      instructions: "Stir with ice and strain.",
+      name: "Negroni",
+      thumbnail:
+        "https://firebasestorage.googleapis.com/v0/b/mixologistweb.firebasestorage.app/o/test%2Fnegroni.jpg?alt=media",
+    },
+    {
+      alcoholic: "Alcoholic",
+      category: "Cocktail",
+      glass: "Cocktail glass",
+      id: "2",
+      ingredientCount: 4,
+      ingredientKeys: ["vodka", "cranberry juice", "triple sec", "lime juice"],
+      ingredients: [
+        { key: "vodka", measure: "1 1/2 oz", name: "Vodka" },
+        { key: "cranberry juice", measure: "1 oz", name: "Cranberry Juice" },
+        { key: "triple sec", measure: "1/2 oz", name: "Triple Sec" },
+        { key: "lime juice", measure: "1/2 oz", name: "Lime Juice" },
+      ],
+      instructions: "Shake with ice and strain.",
+      name: "Cosmopolitan",
+      thumbnail:
+        "https://firebasestorage.googleapis.com/v0/b/mixologistweb.firebasestorage.app/o/test%2Fcosmopolitan.jpg?alt=media",
+    },
+    {
+      alcoholic: "Alcoholic",
+      category: "Cocktail",
+      glass: "Martini glass",
+      id: "3",
+      ingredientCount: 2,
+      ingredientKeys: ["gin", "sweet vermouth"],
+      ingredients: [
+        { key: "gin", measure: "2 oz", name: "Gin" },
+        { key: "sweet vermouth", measure: "1 oz", name: "Sweet Vermouth" },
+      ],
+      instructions: "Stir until chilled.",
+      name: "Gin and It",
+      thumbnail: null,
+    },
+  ],
+};
