@@ -1,8 +1,17 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { getClientFirestore } from "@/lib/firebase/client";
+import {
+  collection,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getClientFirestore, getClientStorage } from "@/lib/firebase/client";
 
 type Ingredient = {
   key: string;
@@ -25,6 +34,8 @@ type Cocktail = {
   ingredients: CocktailIngredient[];
   instructions: string | null;
   name: string;
+  sourceThumbnail?: string | null;
+  storageThumbnailPath?: string | null;
   thumbnail: string | null;
 };
 
@@ -39,6 +50,14 @@ type MatchResult = {
 type MixologistFixture = {
   cocktails: Cocktail[];
   ingredients: Ingredient[];
+};
+
+type ImageSyncState = {
+  failed: number;
+  phase: string;
+  processed: number;
+  skipped: number;
+  total: number;
 };
 
 declare global {
@@ -113,14 +132,47 @@ function getFixtureData() {
   return window.__MIXOLOGIST_FIXTURE__ ?? null;
 }
 
+function getFileExtension(contentType: string | null) {
+  if (contentType === "image/png") {
+    return "png";
+  }
+
+  if (contentType === "image/webp") {
+    return "webp";
+  }
+
+  return "jpg";
+}
+
+function isFirebaseHostedImage(url: string | null | undefined) {
+  if (!url) {
+    return false;
+  }
+
+  return (
+    url.includes("firebasestorage.googleapis.com") ||
+    url.includes("storage.googleapis.com") ||
+    url.includes("firebasestorage.app")
+  );
+}
+
 export function MixologistApp() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [cocktails, setCocktails] = useState<Cocktail[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [imageSyncError, setImageSyncError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncingImages, setIsSyncingImages] = useState(false);
+  const [imageSyncState, setImageSyncState] = useState<ImageSyncState>({
+    failed: 0,
+    phase: "Ready to sync cocktail images",
+    processed: 0,
+    skipped: 0,
+    total: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -233,6 +285,142 @@ export function MixologistApp() {
     });
   }
 
+  async function handleImageSync() {
+    if (isLoading || cocktails.length === 0) {
+      return;
+    }
+
+    setIsSyncingImages(true);
+    setImageSyncError(null);
+    setImageSyncState({
+      failed: 0,
+      phase: "Preparing cocktail image sync",
+      processed: 0,
+      skipped: 0,
+      total: cocktails.length,
+    });
+
+    const db = getClientFirestore();
+    const storage = getClientStorage();
+    let processed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const cocktail of cocktails) {
+      if (!cocktail.thumbnail) {
+        skipped += 1;
+        setImageSyncState({
+          failed,
+          phase: `Skipping ${cocktail.name}: no source thumbnail`,
+          processed,
+          skipped,
+          total: cocktails.length,
+        });
+        continue;
+      }
+
+      if (cocktail.storageThumbnailPath || isFirebaseHostedImage(cocktail.thumbnail)) {
+        skipped += 1;
+        setImageSyncState({
+          failed,
+          phase: `Skipping ${cocktail.name}: already stored in Firebase`,
+          processed,
+          skipped,
+          total: cocktails.length,
+        });
+        continue;
+      }
+
+      try {
+        setImageSyncState({
+          failed,
+          phase: `Downloading ${cocktail.name}`,
+          processed,
+          skipped,
+          total: cocktails.length,
+        });
+
+        const imageResponse = await fetch(
+          `/api/cocktail-image?url=${encodeURIComponent(cocktail.thumbnail)}`,
+          { cache: "no-store" },
+        );
+
+        if (!imageResponse.ok) {
+          throw new Error(`Image proxy failed with status ${imageResponse.status}`);
+        }
+
+        const imageBlob = await imageResponse.blob();
+        const contentType = imageBlob.type || imageResponse.headers.get("content-type");
+        const extension = getFileExtension(contentType);
+        const storagePath = `cocktails/${cocktail.id}/thumbnail.${extension}`;
+        const storageRef = ref(storage, storagePath);
+
+        setImageSyncState({
+          failed,
+          phase: `Uploading ${cocktail.name}`,
+          processed,
+          skipped,
+          total: cocktails.length,
+        });
+
+        await uploadBytes(storageRef, imageBlob, {
+          contentType: contentType ?? "image/jpeg",
+        });
+
+        const firebaseImageUrl = await getDownloadURL(storageRef);
+
+        await updateDoc(doc(db, "cocktails", cocktail.id), {
+          sourceThumbnail: cocktail.thumbnail,
+          storageThumbnailPath: storagePath,
+          thumbnail: firebaseImageUrl,
+          updatedAt: serverTimestamp(),
+        });
+
+        processed += 1;
+        setCocktails((current) =>
+          current.map((item) =>
+            item.id === cocktail.id
+              ? {
+                  ...item,
+                  sourceThumbnail: cocktail.thumbnail,
+                  storageThumbnailPath: storagePath,
+                  thumbnail: firebaseImageUrl,
+                }
+              : item,
+          ),
+        );
+        setImageSyncState({
+          failed,
+          phase: `Synced ${cocktail.name}`,
+          processed,
+          skipped,
+          total: cocktails.length,
+        });
+      } catch (caughtError) {
+        failed += 1;
+        const message =
+          caughtError instanceof Error ? caughtError.message : "Unknown image sync error";
+        setImageSyncError(message);
+        setImageSyncState({
+          failed,
+          phase: `Failed on ${cocktail.name}`,
+          processed,
+          skipped,
+          total: cocktails.length,
+        });
+      }
+    }
+
+    setImageSyncState({
+      failed,
+      phase: "Cocktail image sync complete",
+      processed,
+      skipped,
+      total: cocktails.length,
+    });
+    setIsSyncingImages(false);
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(252,211,77,0.28),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(249,115,22,0.16),_transparent_30%),linear-gradient(180deg,_#fffaf2_0%,_#f8ead6_48%,_#edd5b2_100%)] px-4 py-6 text-stone-900 sm:px-8 sm:py-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -270,6 +458,14 @@ export function MixologistApp() {
               >
                 Clear selection
               </button>
+              <button
+                className="rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
+                disabled={isLoading || isSyncingImages || cocktails.length === 0}
+                onClick={handleImageSync}
+                type="button"
+              >
+                {isSyncingImages ? "Syncing images..." : "Sync Cocktail Images"}
+              </button>
             </div>
           </div>
         </section>
@@ -280,6 +476,49 @@ export function MixologistApp() {
             <p className="mt-2 leading-7">{error}</p>
           </section>
         ) : null}
+
+        <section className="rounded-[1.75rem] border border-white/60 bg-white/80 p-6 shadow-[0_18px_60px_rgba(120,74,18,0.1)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-stone-950">Image sync</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-stone-600">
+                This button downloads each cocktail thumbnail from CocktailDB,
+                uploads it into Firebase Storage, and rewrites the cocktail
+                document to use the Firebase-hosted image.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <div className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700">
+                {imageSyncState.processed} synced
+              </div>
+              <div className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700">
+                {imageSyncState.skipped} skipped
+              </div>
+              <div className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700">
+                {imageSyncState.failed} failed
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-3xl border border-stone-200 bg-stone-950 p-5 text-stone-50">
+            <p className="text-sm uppercase tracking-[0.25em] text-stone-400">Status</p>
+            <p className="mt-3 text-lg">{imageSyncState.phase}</p>
+            <p className="mt-2 text-sm text-stone-300">
+              {imageSyncState.processed + imageSyncState.skipped + imageSyncState.failed} /{" "}
+              {imageSyncState.total || cocktails.length} cocktails handled
+            </p>
+          </div>
+
+          {imageSyncError ? (
+            <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50 p-5 text-rose-800">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em]">
+                Last image sync error
+              </p>
+              <p className="mt-2 leading-7">{imageSyncError}</p>
+            </div>
+          ) : null}
+        </section>
 
         <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <aside className="rounded-[1.75rem] border border-white/60 bg-white/80 p-6 shadow-[0_18px_60px_rgba(120,74,18,0.1)]">

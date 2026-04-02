@@ -1,7 +1,9 @@
 import { FirebaseOptions, getApp, getApps, initializeApp } from "firebase/app";
 import { Firestore, getFirestore } from "firebase/firestore";
+import { FirebaseStorage, getStorage } from "firebase/storage";
 
 let firestoreInstance: Firestore | null = null;
+let storageInstance: FirebaseStorage | null = null;
 
 function getFirebaseConfig(): FirebaseOptions {
   return {
@@ -22,4 +24,14 @@ export function getClientFirestore() {
   const app = getApps().length > 0 ? getApp() : initializeApp(getFirebaseConfig());
   firestoreInstance = getFirestore(app);
   return firestoreInstance;
+}
+
+export function getClientStorage() {
+  if (storageInstance) {
+    return storageInstance;
+  }
+
+  const app = getApps().length > 0 ? getApp() : initializeApp(getFirebaseConfig());
+  storageInstance = getStorage(app);
+  return storageInstance;
 }
